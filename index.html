@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>4.2 office 360° Street View </title>
+<style>
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+}
+canvas { display: block; }
+#transitionOverlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 20%, #000 80%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+  z-index: 10;
+}
+.nav-btn {
+  position: fixed;
+  bottom: 32px;
+  width: 65px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  cursor: pointer;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  z-index: 15;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.nav-btn:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.18);
+}
+#prevBtn { left: 28px; }
+#nextBtn { right: 28px; }
+.zoom-btn {
+  position: fixed;
+  right: 28px;
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 300;
+  cursor: pointer;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  z-index: 15;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 
+  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.zoom-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.18);
+}
+#zoomIn { bottom: 112px; }
+#zoomOut { bottom: 180px; }
+#soundBtn {
+  position: fixed;
+  top: 28px;
+  right: 28px;
+  padding: 14px 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  z-index: 20;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+#soundBtn:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.18);
+}
+#bgMusicBtn {
+  position: fixed;
+  top: 28px;
+  left: 28px;
+  padding: 14px 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  z-index: 20;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+#bgMusicBtn:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.18);
+}
+</style>
+</head>
+<body>
+<div id="transitionOverlay"></div>
+<button id="prevBtn" class="nav-btn">←</button>
+<button id="nextBtn" class="nav-btn">→</button>
+<button id="zoomIn" class="zoom-btn">+</button>
+<button id="zoomOut" class="zoom-btn">−</button>
+<button id="soundBtn">🔇Mute</button>
+<button id="bgMusicBtn">🎵 Music</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script>
+
+let lastX = 0;
+let lastY = 0;
+
+const panoramas = [
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/1.jpg",
+    forward: 1,
+    backward: 7,
+    hasVideo: true
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/2.jpg",
+    forward: 2,
+    backward: 0
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/3.jpg",
+    forward: 3,
+    backward: 1
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/4.jpg",
+    forward: 4,
+    backward: 2
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/5.jpg",
+    forward: 5,
+    backward: 3
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/6.jpg",
+    forward: 6,
+    backward: 4
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/7.jpg",
+    forward: 7,
+    backward: 5
+  },
+  {
+    url: "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/8.jpg",
+    forward: 0,
+    backward: 6
+  }
+];
+
+const BG_MUSIC_URL = "https://raw.githubusercontent.com/Gitboi46/360-viewer/main/dubdown-light-132952.mp3";
+
+let scene, camera, renderer, sphere;
+let yaw = 0, pitch = 0;
+let currentIndex = 0;
+let isDragging = false;
+let isTransitioning = false;
+let videoMesh = null;
+let videoElement = null;
+
+// Background music audio element
+let bgMusic = null;
+let bgMusicPlaying = false;
+
+// Texture cache
+const textureCache = new Array(panoramas.length).fill(null);
+const loader = new THREE.TextureLoader();
+
+function preloadAll() {
+  panoramas.forEach((pano, i) => {
+    loader.load(pano.url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      textureCache[i] = tex;
+    });
+  });
+}
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const overlay = document.getElementById("transitionOverlay");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const zoomInBtn = document.getElementById("zoomIn");
+const zoomOutBtn = document.getElementById("zoomOut");
+const soundBtn = document.getElementById("soundBtn");
+const bgMusicBtn = document.getElementById("bgMusicBtn");
+
+init();
+animate();
+initBgMusic();
+
+prevBtn.onclick = () => move(false);
+nextBtn.onclick = () => move(true);
+zoomInBtn.onclick = () => zoom(-5);
+zoomOutBtn.onclick = () => zoom(5);
+soundBtn.onclick = toggleSound;
+bgMusicBtn.onclick = toggleBgMusic;
+
+function initBgMusic() {
+  if (!BG_MUSIC_URL) {
+    bgMusicBtn.style.opacity = "0.4";
+    bgMusicBtn.title = "No music URL set — add BG_MUSIC_URL in the code";
+    return;
+  }
+  bgMusic = new Audio(BG_MUSIC_URL);
+  bgMusic.loop = true;
+  bgMusic.volume = 0.5;
+}
+
+function toggleBgMusic() {
+  if (!bgMusic) return;
+  if (bgMusicPlaying) {
+    bgMusic.pause();
+    bgMusicPlaying = false;
+    bgMusicBtn.textContent = "🎵 Music";
+  } else {
+    bgMusic.play().catch(() => {});
+    bgMusicPlaying = true;
+    bgMusicBtn.textContent = "🔇 Music Off";
+  }
+}
+
+function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 2000);
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(devicePixelRatio);
+  document.body.appendChild(renderer.domElement);
+
+  preloadAll();
+  loadPanorama(0);
+
+  renderer.domElement.addEventListener("pointerdown", onPointerDown, { passive: true });
+  renderer.domElement.addEventListener("pointermove", onPointerMove, { passive: true });
+  renderer.domElement.addEventListener("pointerup", onPointerUp, { passive: true });
+  renderer.domElement.addEventListener("pointercancel", onPointerCancel, { passive: true });
+  renderer.domElement.addEventListener("wheel", e => zoom(e.deltaY * 0.02), { passive: true });
+  window.addEventListener("resize", onResize);
+}
+
+function onPointerDown(e) {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  if (videoMesh) {
+    const hits = raycaster.intersectObject(videoMesh);
+    if (hits.length) {
+      togglePlayPause();
+      return;
+    }
+  }
+
+  lastX = e.clientX;
+  lastY = e.clientY;
+  isDragging = true;
+}
+
+function onPointerMove(e) {
+  if (!isDragging || isTransitioning) return;
+
+  const deltaX = e.clientX - lastX;
+  const deltaY = e.clientY - lastY;
+
+  yaw += deltaX * 0.35;
+  pitch += deltaY * 0.35;
+
+  pitch = Math.max(-85, Math.min(85, pitch));
+
+  lastX = e.clientX;
+  lastY = e.clientY;
+}
+
+function onPointerUp() {
+  isDragging = false;
+}
+
+function onPointerCancel() {
+  isDragging = false;
+}
+
+function applyPanorama(index, tex) {
+  if (!sphere) {
+    const geo = new THREE.SphereGeometry(500, 64, 48);
+    geo.scale(-1, 1, 1);
+    sphere = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex }));
+    scene.add(sphere);
+  } else {
+    sphere.material.map = tex;
+    sphere.material.needsUpdate = true;
+  }
+
+  removeVideoBanner();
+  if (panoramas[index].hasVideo) {
+    addVideoBanner();
+    soundBtn.style.display = 'block';
+  } else {
+    soundBtn.style.display = 'none';
+  }
+
+  currentIndex = index;
+}
+
+function loadPanorama(index) {
+  if (textureCache[index]) {
+    applyPanorama(index, textureCache[index]);
+    return;
+  }
+  loader.load(panoramas[index].url, tex => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    textureCache[index] = tex;
+    applyPanorama(index, tex);
+  });
+}
+
+/* EVERYTHING BELOW UNTOUCHED */
+
+function addVideoBanner() {
+  videoElement = document.createElement("video");
+  videoElement.src = "";
+  videoElement.crossOrigin = "anonymous";
+  videoElement.loop = true;
+  videoElement.muted = true;
+  videoElement.autoplay = true;
+  videoElement.playsInline = true;
+  videoElement.play().catch(() => {});
+
+  const texture = new THREE.VideoTexture(videoElement);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const chromaKeyMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      tVideo: { value: texture },
+      keyColor: { value: new THREE.Color(0x0000ff) },
+      threshold: { value: 0.18 },
+      smoothing: { value: 0.12 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D tVideo;
+      uniform vec3 keyColor;
+      uniform float threshold;
+      uniform float smoothing;
+      varying vec2 vUv;
+      void main() {
+        vec4 texel = texture2D(tVideo, vUv);
+        vec3 color = texel.rgb;
+        float dist = distance(color, keyColor);
+        float alpha = smoothstep(threshold, threshold + smoothing, dist);
+        gl_FragColor = vec4(color, texel.a * alpha);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+
+  const geometry = new THREE.PlaneGeometry(200, 335);
+  videoMesh = new THREE.Mesh(geometry, chromaKeyMaterial);
+  videoMesh.position.set(-360, 10, 25);
+  videoMesh.rotation.y = THREE.MathUtils.degToRad(80);
+  scene.add(videoMesh);
+}
+
+function removeVideoBanner() {
+  if (!videoMesh) return;
+  scene.remove(videoMesh);
+  videoMesh.geometry.dispose();
+  videoMesh.material.dispose();
+  if (videoElement) videoElement.pause();
+  videoMesh = null;
+  videoElement = null;
+}
+
+function toggleSound() {
+  if (!videoElement) return;
+  videoElement.muted = !videoElement.muted;
+  soundBtn.textContent = videoElement.muted ? "🔇 Sound Off" : "🔊 Sound On";
+  if (!videoElement.muted && videoElement.paused) {
+    videoElement.play().catch(() => {});
+  }
+}
+
+function togglePlayPause() {
+  if (!videoElement) return;
+  if (videoElement.paused) {
+    videoElement.play().catch(() => {});
+  } else {
+    videoElement.pause();
+  }
+}
+
+function move(forward) {
+  if (isTransitioning) return;
+  isTransitioning = true;
+
+  const target = forward
+    ? panoramas[currentIndex].forward
+    : panoramas[currentIndex].backward;
+
+
+  loadPanorama(target);
+
+  const start = performance.now();
+  const duration = 1200;
+
+  function animateMove() {
+    const t = Math.min((performance.now() - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    camera.position.copy(dir.multiplyScalar(ease * 160));
+    overlay.style.opacity = ease * 0.8;
+
+    if (t < 1) {
+      requestAnimationFrame(animateMove);
+    } else {
+      camera.position.set(0, 0, 0);
+      overlay.style.opacity = 0;
+      isTransitioning = false;
+    }
+  }
+
+  animateMove();
+}
+
+function zoom(amount) {
+  camera.fov = THREE.MathUtils.clamp(camera.fov + amount, 30, 90);
+  camera.updateProjectionMatrix();
+}
+
+function onResize() {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  camera.rotation.order = "YXZ";
+  camera.rotation.y = THREE.MathUtils.degToRad(yaw);
+  camera.rotation.x = THREE.MathUtils.degToRad(pitch);
+  renderer.render(scene, camera);
+}
+
+</script>
+</body>
+</html>
